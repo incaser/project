@@ -37,7 +37,7 @@ Note that only a simple record is made and no accounting or stock moves are
 actually performed.""",
     'depends': ['project', 'product'],
     'data': [
-        'project_view.xml',
+        'views/project_view.xml',
         'security/ir.model.access.csv',
     ],
     'installable': True,
