@@ -47,7 +47,8 @@ class Task(models.Model):
         comodel_name='stock.move', compute='_get_stock_move',
         string='Stock Moves')
     stock_state = fields.Selection(
-        [('confirmed', 'Confirmed'),
+        [('pending', 'Pending'),
+         ('confirmed', 'Confirmed'),
          ('assigned', 'Assigned'),
          ('done', 'Done')], compute='_check_stock_state', string='Stock State')
 
