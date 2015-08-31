@@ -35,7 +35,7 @@ activated.
 
 Note that only a simple record is made and no accounting or stock moves are
 actually performed.""",
-    'depends': ['project', 'product'],
+    'depends': ['project', 'stock', 'sale_service'],
     'data': [
         'views/project_view.xml',
         'security/ir.model.access.csv',

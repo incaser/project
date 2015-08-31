@@ -7,17 +7,33 @@
       <field name="model">project.task</field>
       <field name="inherit_id" ref="project.view_task_form2"/>
       <field name="arch" type="xml">
-
+        <field name="stage_id" position="before">
+          <button name="action_assign" type="object" string="Assign Materials"
+                  attrs="{'invisible':[('stock_state','!=','confirmed')]}"
+                  class="oe_highlight"/>
+          <button name="action_done" type="object" string="Consume Materials"
+                  attrs="{'invisible':[('stock_state','!=','assigned')]}"
+                  class="oe_highlight"/>
+        </field>
         <field position="after" name="work_ids">
           <!--Materials used-->
-          <field name="material_ids" groups="project.group_tasks_work_on_tasks">
-            <tree string="Materials used" editable="top">
-              <field name="product_id"/>
-              <field name="quantity"/>
-            </tree>
-          </field>
+          <group string="Materials">
+            <notebook>
+              <page string="Materials used">
+                <field name="material_ids" groups="project.group_tasks_work_on_tasks">
+                  <tree string="Materials used" editable="top">
+                    <field name="product_id"
+                           domain="[('type', 'in', ['consu', 'product'])]"/>
+                    <field name="quantity"/>
+                  </tree>
+                </field>
+              </page>
+              <page string="Stock Moves">
+                <field name="stock_move_ids"/>
+              </page>
+            </notebook>
+          </group>
         </field>
-
       </field>
     </record>
 
