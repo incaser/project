@@ -29,6 +29,11 @@ class Task(models.Model):
         move_ids = [line.stock_move_id.id for line in self.material_ids]
         self.stock_move_ids = self.env['stock.move'].browse(move_ids)
 
+    def _get_analytic_line(self):
+        line_ids = [line.analytic_line_id.id for line in self.material_ids]
+        self.analytic_line_ids = \
+            self.env['account.analytic.line'].browse(line_ids)
+
     def _check_stock_state(self):
         if not self.stock_move_ids:
             self.stock_state = 'pending'
@@ -51,6 +56,9 @@ class Task(models.Model):
          ('confirmed', 'Confirmed'),
          ('assigned', 'Assigned'),
          ('done', 'Done')], compute='_check_stock_state', string='Stock State')
+    analytic_line_ids = fields.One2many(
+        comodel_name='account.analytic.line', compute='_get_analytic_line',
+        string='Analytic Lines')
 
     @api.one
     def unlink_stock_move(self):
@@ -67,8 +75,10 @@ class Task(models.Model):
         if 'stage_id' in vals:
             if self.stage_closed:
                 self.material_ids.create_stock_move()
+                self.material_ids.create_analytic_line()
             else:
                 self.unlink_stock_move()
+                self.analytic_line_ids.unlink()
         return res
 
     @api.multi
@@ -91,6 +101,9 @@ class ProjectTaskMaterials(models.Model):
     quantity = fields.Float(string='Quantity')
     stock_move_id = fields.Many2one(
         comodel_name='stock.move', string='Stock Move')
+    analytic_line_id = fields.Many2one(
+        comodel_name='account.analytic.line', string='Analytic Line',
+        ondelete='cascade')
 
     def _prepare_stock_move(self):
         product = self.product_id
@@ -121,3 +134,31 @@ class ProjectTaskMaterials(models.Model):
     def create_stock_move(self):
         move_id = self.env['stock.move'].create(self._prepare_stock_move())
         self.stock_move_id = move_id.id
+
+    def _prepare_analityc_line(self):
+        product = self.product_id
+        # find company
+        company_id = self.env['res.company']._company_default_get(
+            'account.analytic.line')
+        journal_id = 1 #TODO: Create journal in datas
+        res = {
+            'name': self.task_id.name + ': ' + product.name,
+            'ref': self.task_id.name_get(),
+            'product_id': product.id,
+            'unit_amount': self.quantity,
+            'account_id': self.task_id.project_id.analytic_account_id.id,
+            'to_invoice':
+                self.task_id.project_id.analytic_account_id.to_invoice.id,
+        }
+        amount_dic = self.env['account.analytic.line'].on_change_unit_amount(
+            product.id, self.quantity, company_id, False, journal_id)
+        if amount_dic:
+            res.update(amount_dic['value'])
+        return res
+
+    @api.one
+    def create_analytic_line(self):
+        move_id = self.env['account.analytic.line'].create(self._prepare_analityc_line())
+        self.analytic_line_id = move_id.id
+
+

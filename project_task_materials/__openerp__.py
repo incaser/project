@@ -9,7 +9,7 @@
     'author': "Odoo Community Association (OCA)",
     'license': 'AGPL-3',
     'description': "",
-    'depends': ['project', 'stock', 'sale_service'],
+    'depends': ['project', 'stock', 'account', 'analytic', 'sale_service'],
     'data': [
         'views/project_view.xml',
         'security/ir.model.access.csv',
