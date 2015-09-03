@@ -11,6 +11,7 @@
     'description': "",
     'depends': ['project', 'stock', 'account', 'analytic', 'sale_service'],
     'data': [
+        'data/project_task_materials_data.xml',
         'views/project_view.xml',
         'security/ir.model.access.csv',
     ],

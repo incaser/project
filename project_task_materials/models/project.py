@@ -22,6 +22,15 @@ from openerp import models, fields, api
 from openerp.tools.float_utils import float_round
 
 
+class ProjectTaskType(models.Model):
+    _inherit = 'project.task.type'
+
+    consume_material = fields.Boolean(
+        string='Consume Material',
+        help="""If check this option, when a task change at this state
+        consume associated materials""")
+
+
 class Task(models.Model):
     _inherit = "project.task"
 
@@ -47,7 +56,7 @@ class Task(models.Model):
     material_ids = fields.One2many(
         comodel_name='project.task.materials', inverse_name='task_id',
         string='Materials used')
-    stage_closed = fields.Boolean(related='stage_id.closed')
+    consume_material = fields.Boolean(related='stage_id.consume_material')
     stock_move_ids = fields.One2many(
         comodel_name='stock.move', compute='_get_stock_move',
         string='Stock Moves')
@@ -73,7 +82,7 @@ class Task(models.Model):
     def write(self, vals):
         res = super(Task, self).write(vals)
         if 'stage_id' in vals:
-            if self.stage_closed:
+            if self.consume_material:
                 self.material_ids.create_stock_move()
                 self.material_ids.create_analytic_line()
             else:
@@ -102,8 +111,7 @@ class ProjectTaskMaterials(models.Model):
     stock_move_id = fields.Many2one(
         comodel_name='stock.move', string='Stock Move')
     analytic_line_id = fields.Many2one(
-        comodel_name='account.analytic.line', string='Analytic Line',
-        ondelete='cascade')
+        comodel_name='account.analytic.line', string='Analytic Line')
 
     def _prepare_stock_move(self):
         product = self.product_id
@@ -137,28 +145,32 @@ class ProjectTaskMaterials(models.Model):
 
     def _prepare_analityc_line(self):
         product = self.product_id
-        # find company
         company_id = self.env['res.company']._company_default_get(
             'account.analytic.line')
-        journal_id = 1 #TODO: Create journal in datas
+        journal = self.env.ref(
+            'project_task_materials.analytic_journal_sale_materials')
         res = {
             'name': self.task_id.name + ': ' + product.name,
-            'ref': self.task_id.name_get(),
+            'ref': self.task_id.name,
             'product_id': product.id,
+            'journal_id': journal.id,
             'unit_amount': self.quantity,
             'account_id': self.task_id.project_id.analytic_account_id.id,
             'to_invoice':
                 self.task_id.project_id.analytic_account_id.to_invoice.id,
+            'user_id': self._uid,
         }
-        amount_dic = self.env['account.analytic.line'].on_change_unit_amount(
-            product.id, self.quantity, company_id, False, journal_id)
-        if amount_dic:
-            res.update(amount_dic['value'])
+        analytic_line_obj = self.pool.get('account.analytic.line')
+        amount_dic = analytic_line_obj.on_change_unit_amount(
+            self._cr, self._uid, self._ids, product.id, self.quantity,
+            company_id, False, journal.id, self._context)
+        res.update(amount_dic['value'])
         return res
 
     @api.one
     def create_analytic_line(self):
-        move_id = self.env['account.analytic.line'].create(self._prepare_analityc_line())
+        move_id = self.env['account.analytic.line'].create(
+            self._prepare_analityc_line())
         self.analytic_line_id = move_id.id
 
 
